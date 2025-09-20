@@ -14,7 +14,7 @@ struct SpeedTestResult {
 
 #[derive(Serialize, Deserialize)]
 struct TestData {
-    data: String,
+    data: Vec<u8>,
 }
 
 // 全局状态存储测试数据
@@ -190,4 +190,85 @@ async fn handle_speed_test(test_data: TestDataStore) -> Result<impl warp::Reply,
     };
     
     Ok(warp::reply::json(&result))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use warp::test::request;
+
+    #[tokio::test]
+    async fn test_ping_endpoint() {
+        let filter = warp::path("api")
+            .and(warp::path("ping"))
+            .and(warp::get())
+            .and_then(handle_ping_test);
+
+        let response = request()
+            .method("GET")
+            .path("/api/ping")
+            .reply(&filter)
+            .await;
+
+        assert_eq!(response.status(), 200);
+    }
+
+    #[tokio::test]
+    async fn test_download_endpoint() {
+        let test_data = Arc::new(tokio::sync::Mutex::new(vec![0u8; 1024 * 1024])); // 1MB test data
+        let filter = warp::path("api")
+            .and(warp::path("download"))
+            .and(warp::get())
+            .and(warp::query::<std::collections::HashMap<String, String>>())
+            .and(with_test_data(test_data.clone()))
+            .and_then(handle_download_test);
+
+        let response = request()
+            .method("GET")
+            .path("/api/download?size=1MB")
+            .reply(&filter)
+            .await;
+
+        assert_eq!(response.status(), 200);
+    }
+
+    #[tokio::test]
+    async fn test_upload_endpoint() {
+        let test_data = Arc::new(tokio::sync::Mutex::new(vec![0u8; 1024 * 1024]));
+        let filter = warp::path("api")
+            .and(warp::path("upload"))
+            .and(warp::post())
+            .and(warp::body::bytes())
+            .map(|bytes: warp::hyper::body::Bytes| TestData { data: bytes.to_vec() })
+            .and(with_test_data(test_data.clone()))
+            .and_then(handle_upload_test);
+
+        let test_bytes = vec![0u8; 1024]; // 1KB test data
+        let response = request()
+            .method("POST")
+            .path("/api/upload")
+            .body(test_bytes)
+            .reply(&filter)
+            .await;
+
+        assert_eq!(response.status(), 200);
+    }
+
+    #[tokio::test]
+    async fn test_speedtest_endpoint() {
+        let test_data = Arc::new(tokio::sync::Mutex::new(vec![0u8; 1024 * 1024]));
+        let filter = warp::path("api")
+            .and(warp::path("speedtest"))
+            .and(warp::get())
+            .and(with_test_data(test_data.clone()))
+            .and_then(handle_speed_test);
+
+        let response = request()
+            .method("GET")
+            .path("/api/speedtest")
+            .reply(&filter)
+            .await;
+
+        assert_eq!(response.status(), 200);
+    }
 }
