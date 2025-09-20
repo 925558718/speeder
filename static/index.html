@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内网测速工具</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #ecf0f1;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+        
+        .test-section h3 {
+            margin-top: 0;
+            color: #34495e;
+            font-size: 1.3em;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+        }
+        
+        button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-line;
+            display: none;
+        }
+        
+        .download-result {
+            background: #e8f5e8;
+            border-left: 4px solid #27ae60;
+            color: #2c3e50;
+        }
+        
+        .upload-result {
+            background: #e8f4fd;
+            border-left: 4px solid #3498db;
+            color: #2c3e50;
+        }
+        
+        .ping-result {
+            background: #fff3cd;
+            border-left: 4px solid #f39c12;
+            color: #2c3e50;
+        }
+        
+        .speed-test-result {
+            background: #f8d7da;
+            border-left: 4px solid #e74c3c;
+            color: #2c3e50;
+        }
+        
+        .status {
+            text-align: center;
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 内网测速工具</h1>
+        
+        <div class="test-section">
+            <h3>📥 下载速度测试</h3>
+            <button id="downloadBtn" onclick="testDownload()">开始下载测试</button>
+            <div id="downloadResult" class="result download-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📤 上传速度测试</h3>
+            <button id="uploadBtn" onclick="testUpload()">开始上传测试</button>
+            <div id="uploadResult" class="result upload-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🏓 延迟测试</h3>
+            <button id="pingBtn" onclick="testPing()">开始延迟测试</button>
+            <div id="pingResult" class="result ping-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>⚡ 综合测速</h3>
+            <button id="speedTestBtn" onclick="runSpeedTest()">开始综合测试</button>
+            <div id="speedTestResult" class="result speed-test-result"></div>
+        </div>
+    </div>
+
+    <script>
+        async function testDownload() {
+            const btn = document.getElementById('downloadBtn');
+            const result = document.getElementById('downloadResult');
+
+            btn.disabled = true;
+            result.style.display = 'block';
+            result.innerHTML = '正在准备测试...';
+
+            try {
+                // 测试不同大小的数据包
+                const testConfigs = [
+                    { size: 0.5, count: 50, name: '小包' },
+                    { size: 1, count: 30, name: '中小包' },
+                    { size: 5, count: 20, name: '中包' },
+                    { size: 10, count: 15, name: '大包' },
+                    { size: 50, count: 10, name: '超大包' }
+                ];
+
+                const allResults = [];
+
+                for (const config of testConfigs) {
+                    result.innerHTML = `下载测试: ${config.name} (${config.size}MB) - 正在测试 ${config.count} 次...`;
+                    const speeds = [];
+
+                    for (let i = 0; i < config.count; i++) {
+                        const startTime = performance.now();
+
+                        // 发起下载请求
+                        const response = await fetch(`/api/download?size=${config.size}MB&t=${Date.now()}&r=${Math.random()}`, {
+                            cache: 'no-cache'
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+
+                        // 获取响应体
+                        const reader = response.body.getReader();
+                        let totalBytes = 0;
+
+                        // 流式读取数据
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+                            totalBytes += value.length;
+                        }
+
+                        const endTime = performance.now();
+                        const actualTime = (endTime - startTime) / 1000;
+                        const speed = totalBytes / 1024 / 1024 / actualTime;
+                        speeds.push(speed);
+
+                        // 短暂休息
+                        await new Promise(resolve => setTimeout(resolve, 50));
+                    }
+
+                    const avgSpeed = speeds.reduce((a, b) => a + b, 0) / speeds.length;
+                    const minSpeed = Math.min(...speeds);
+                    const maxSpeed = Math.max(...speeds);
+                    
+                    allResults.push({ 
+                        size: config.size, 
+                        name: config.name,
+                        speed: avgSpeed, 
+                        min: minSpeed, 
+                        max: maxSpeed,
+                        count: config.count
+                    });
+
+                    result.innerHTML = `下载测试: ${config.name} (${config.size}MB) - 平均 ${avgSpeed.toFixed(2)} MB/s (${config.count}次)`;
+                }
+
+                // 分析结果
+                let resultText = '下载速度测试结果:\n\n';
+                
+                allResults.forEach(r => {
+                    resultText += `${r.name} (${r.size}MB): ${r.speed.toFixed(2)} MB/s (${r.count}次测试)\n`;
+                    resultText += `  范围: ${r.min.toFixed(2)} - ${r.max.toFixed(2)} MB/s\n\n`;
+                });
+
+                // 计算小包和大包的平均速度
+                const smallPackets = allResults.filter(r => r.size <= 1);
+                const largePackets = allResults.filter(r => r.size >= 10);
+
+                if (smallPackets.length > 0) {
+                    const smallAvg = smallPackets.reduce((sum, r) => sum + r.speed, 0) / smallPackets.length;
+                    resultText += `小包平均速度 (≤1MB): ${smallAvg.toFixed(2)} MB/s\n`;
+                }
+
+                if (largePackets.length > 0) {
+                    const largeAvg = largePackets.reduce((sum, r) => sum + r.speed, 0) / largePackets.length;
+                    resultText += `大包平均速度 (≥10MB): ${largeAvg.toFixed(2)} MB/s\n`;
+                }
+
+                if (smallPackets.length > 0 && largePackets.length > 0) {
+                    const smallAvg = smallPackets.reduce((sum, r) => sum + r.speed, 0) / smallPackets.length;
+                    const largeAvg = largePackets.reduce((sum, r) => sum + r.speed, 0) / largePackets.length;
+                    const difference = ((largeAvg - smallAvg) / smallAvg * 100).toFixed(1);
+                    resultText += `性能差异: ${difference}% (大包比小包快)\n`;
+                }
+
+                result.innerHTML = resultText.replace(/\n/g, '<br>');
+
+            } catch (error) {
+                result.innerHTML = `测试失败: ${error.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '开始下载测试';
+            }
+        }
+
+        async function testUpload() {
+            const btn = document.getElementById('uploadBtn');
+            const result = document.getElementById('uploadResult');
+
+            btn.disabled = true;
+            result.style.display = 'block';
+            result.innerHTML = '正在准备测试...';
+
+            try {
+                const startTime = performance.now();
+
+                // 生成测试数据 (1MB)
+                const testData = new Uint8Array(1024 * 1024);
+                for (let i = 0; i < testData.length; i++) {
+                    testData[i] = Math.floor(Math.random() * 256);
+                }
+
+                // 发送数据
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/octet-stream',
+                    },
+                    body: testData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const endTime = performance.now();
+                const actualTime = (endTime - startTime) / 1000;
+                const speed = (1024 * 1024) / 1024 / 1024 / actualTime;
+
+                result.innerHTML = `上传速度: ${speed.toFixed(2)} MB/s (测试时长: ${actualTime.toFixed(1)}秒)`;
+
+            } catch (error) {
+                result.innerHTML = `测试失败: ${error.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '开始上传测试';
+            }
+        }
+
+        async function testPing() {
+            const btn = document.getElementById('pingBtn');
+            const result = document.getElementById('pingResult');
+            
+            btn.disabled = true;
+            result.style.display = 'block';
+            result.innerHTML = '正在测试延迟...';
+            
+            try {
+                const latencies = [];
+                const testCount = 10; // 测试10次
+                
+                for (let i = 0; i < testCount; i++) {
+                    const startTime = performance.now();
+                    const response = await fetch('/api/ping?t=' + Date.now());
+                    const endTime = performance.now();
+                    
+                    if (response.ok) {
+                        const latency = Math.round(endTime - startTime);
+                        latencies.push(latency);
+                        result.innerHTML = `延迟测试: ${i + 1}/${testCount} - ${latency}ms`;
+                    }
+                    
+                    // 短暂休息
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                // 计算统计结果
+                const avgLatency = latencies.reduce((a, b) => a + b, 0) / latencies.length;
+                const minLatency = Math.min(...latencies);
+                const maxLatency = Math.max(...latencies);
+                
+                // 计算抖动 (连续两次延迟差的平均值)
+                let jitter = 0;
+                if (latencies.length > 1) {
+                    let totalDiff = 0;
+                    for (let i = 1; i < latencies.length; i++) {
+                        totalDiff += Math.abs(latencies[i] - latencies[i-1]);
+                    }
+                    jitter = totalDiff / (latencies.length - 1);
+                }
+                
+                result.innerHTML = `延迟: 平均 ${avgLatency.toFixed(1)}ms, 最小 ${minLatency}ms, 最大 ${maxLatency}ms, 抖动 ${jitter.toFixed(1)}ms`;
+                
+            } catch (error) {
+                result.innerHTML = `测试失败: ${error.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '开始延迟测试';
+            }
+        }
+
+        async function runSpeedTest() {
+            const btn = document.getElementById('speedTestBtn');
+            const result = document.getElementById('speedTestResult');
+            
+            btn.disabled = true;
+            result.style.display = 'block';
+            result.innerHTML = '正在运行综合测试...';
+            
+            try {
+                const response = await fetch('/api/speedtest');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    result.innerHTML = `综合测试结果:
+下载速度: ${data.download_speed.toFixed(2)} MB/s
+上传速度: ${data.upload_speed.toFixed(2)} MB/s
+延迟: ${data.latency}ms
+测试时间: ${data.timestamp}`;
+                } else {
+                    throw new Error(data.error || '测试失败');
+                }
+                
+            } catch (error) {
+                result.innerHTML = `测试失败: ${error.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '开始综合测试';
+            }
+        }
+    </script>
+</body>
+</html>
